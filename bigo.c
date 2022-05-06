@@ -35,6 +35,7 @@
 #define DEFAULT_HEIGHT 2160
 #define DEFAULT_FPS 60
 #define BIGO_SMC_ID 0xd
+#define BIGO_MAX_INST_NUM 16
 
 static int bigo_worker_thread(void *data);
 
@@ -107,16 +108,22 @@ exit:
 
 static inline void on_last_inst_close(struct bigo_core *core)
 {
-	int rc;
 #if IS_ENABLED(CONFIG_PM)
 	if (pm_runtime_put_sync_suspend(core->dev))
 		pr_warn("failed to suspend\n");
 #endif
 	bigo_pt_client_disable(core);
+}
 
-	rc = kthread_stop(core->worker_thread);
-	if(rc)
-		pr_err("failed to stop worker thread rc = %d\n", rc);
+static inline int bigo_count_inst(struct bigo_core *core)
+{
+	int count = 0;
+	struct list_head *pos;
+
+	list_for_each(pos, &core->instances)
+		count++;
+
+	return count;
 }
 
 static int bigo_open(struct inode *inode, struct file *file)
@@ -124,6 +131,12 @@ static int bigo_open(struct inode *inode, struct file *file)
 	int rc = 0;
 	struct bigo_core *core = container_of(inode->i_cdev, struct bigo_core, cdev);
 	struct bigo_inst *inst;
+
+	if (bigo_count_inst(core) >= BIGO_MAX_INST_NUM) {
+		rc = -ENOMEM;
+		pr_err("Reaches max number of supported instances\n");
+		goto err;
+	}
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst) {
@@ -181,13 +194,8 @@ static void bigo_close(struct kref *ref)
 		return;
 	}
 	bigo_unmap_all(inst);
-	mutex_lock(&core->lock);
-	list_del(&inst->list);
 	kfree(inst->job.regs);
 	kfree(inst);
-	if (list_empty(&core->instances))
-		on_last_inst_close(core);
-	mutex_unlock(&core->lock);
 	bigo_update_qos(core);
 	pr_info("closed instance\n");
 }
@@ -195,9 +203,19 @@ static void bigo_close(struct kref *ref)
 static int bigo_release(struct inode *inode, struct file *file)
 {
 	struct bigo_inst *inst = file->private_data;
+	struct bigo_core *core = inst->core;
 
-	if (!inst)
+	if (!inst || !core)
 		return -EINVAL;
+
+	mutex_lock(&core->lock);
+	list_del(&inst->list);
+	if (list_empty(&core->instances))
+	{
+		kthread_stop(core->worker_thread);
+		on_last_inst_close(core);
+	}
+	mutex_unlock(&core->lock);
 
 	kref_put(&inst->refcount, bigo_close);
 	return 0;
@@ -208,6 +226,7 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	long ret = 0;
 	int rc = 0;
 	u32 status = 0;
+	unsigned long flags;
 
 	bigo_bypass_ssmt_pid(core);
 	bigo_push_regs(core, job->regs);
@@ -216,6 +235,11 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 			msecs_to_jiffies(JOB_COMPLETE_TIMEOUT_MS));
 	if (!ret) {
 		pr_err("timed out waiting for HW\n");
+
+		spin_lock_irqsave(&core->status_lock, flags);
+		core->stat_with_irq = bigo_core_readl(core, BIGO_REG_STAT);
+		spin_unlock_irqrestore(&core->status_lock, flags);
+
 		bigo_core_disable(core);
 		rc = -ETIMEDOUT;
 	} else {
