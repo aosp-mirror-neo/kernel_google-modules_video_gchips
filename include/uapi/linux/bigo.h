@@ -9,12 +9,8 @@
 #define _UAPI_BIGO_H_
 
 #include <linux/ioctl.h>
-#ifdef __KERNEL__
 #include <linux/compiler.h>
-#else
-#define __user
 #include <linux/types.h>
-#endif
 
 /*
  * Structures as parameters for BigOcean commands. It should be passed
@@ -34,6 +30,7 @@ struct bigo_ioc_mapping {
 	__u32 iova;
 	__u32 offset;
 	__u32 size;
+	__u32 skip_cmo;
 };
 
 struct bigo_ioc_frmsize {
