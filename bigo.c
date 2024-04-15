@@ -538,7 +538,7 @@ static int init_chardev(struct bigo_core *core)
 		goto err_cdev_add;
 	}
 
-	core->_class = class_create(BIGO_DEVCLASS_NAME);
+	core->_class = class_create(THIS_MODULE, BIGO_DEVCLASS_NAME);
 	if (IS_ERR(core->_class)) {
 		rc = PTR_ERR(core->_class);
 		goto err_class_create;
