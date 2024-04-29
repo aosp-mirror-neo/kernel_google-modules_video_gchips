@@ -826,12 +826,6 @@ static int bigo_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	rc = iommu_register_device_fault_handler(&pdev->dev, bigo_iommu_fault_handler, core);
-	if (rc) {
-		pr_err("failed to register iommu fault handler: %d\n", rc);
-		goto err_fault_handler;
-	}
-
 	rc = bigo_pt_client_register(pdev->dev.of_node, core);
 	if (rc == -EPROBE_DEFER) {
 		pr_warn("pt_client returns -EPROBE_DEFER, try again later\n");
@@ -853,8 +847,6 @@ static int bigo_probe(struct platform_device *pdev)
 	return rc;
 
 err_pt_client:
-	iommu_unregister_device_fault_handler(&pdev->dev);
-err_fault_handler:
 	pm_runtime_disable(&pdev->dev);
 err_io:
 	bigo_of_dt_release(core);
@@ -873,7 +865,6 @@ static void bigo_remove(struct platform_device *pdev)
 	bigo_uninit_debugfs(core);
 	platform_device_unregister(&bigo_sscd_dev);
 	bigo_pt_client_unregister(core);
-	iommu_unregister_device_fault_handler(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	bigo_of_dt_release(core);
 	deinit_chardev(core);
