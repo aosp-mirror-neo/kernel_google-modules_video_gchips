@@ -20,6 +20,7 @@ kernel_module(
         "**/*.h",
     ]) + [
         "Kbuild",
+        "Makefile",
         "//private/google-modules/soc/gs:gs_soc_headers",
     ],
     outs = [
