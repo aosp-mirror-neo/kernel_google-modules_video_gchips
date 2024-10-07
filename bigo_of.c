@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -99,7 +100,7 @@ static int bigo_of_parse_opp_table(struct bigo_core *core)
 	struct device_node *np;
 	struct bigo_opp *opp;
 
-	struct device_node *opp_np =
+	struct device_node *opp_np __free(device_node) =
 		of_parse_phandle(core->dev->of_node, "vpu-opp-table", 0);
 	if (!opp_np) {
 		return -ENOENT;
@@ -138,7 +139,7 @@ static int bigo_of_parse_bw_table(struct bigo_core *core)
 	struct device_node *np;
 	struct bigo_bw *bw;
 
-	struct device_node *bw_np =
+	struct device_node *bw_np __free(device_node) =
 		of_parse_phandle(core->dev->of_node, "vpu-bw-table", 0);
 	if (!bw_np) {
 		return -ENOENT;
