@@ -97,7 +97,6 @@ static void bigo_of_remove_bw_table(struct bigo_core *core)
 static int bigo_of_parse_opp_table(struct bigo_core *core)
 {
 	int rc = 0;
-	struct device_node *np;
 	struct bigo_opp *opp;
 
 	struct device_node *opp_np __free(device_node) =
@@ -106,7 +105,7 @@ static int bigo_of_parse_opp_table(struct bigo_core *core)
 		return -ENOENT;
 		goto err_add_table;
 	}
-	for_each_available_child_of_node(opp_np, np) {
+	for_each_available_child_of_node_scoped(opp_np, np) {
 		opp = kmalloc(sizeof(*opp), GFP_KERNEL);
 		if (!opp) {
 			rc = -ENOMEM;
@@ -136,7 +135,6 @@ err_add_table:
 static int bigo_of_parse_bw_table(struct bigo_core *core)
 {
 	int rc = 0;
-	struct device_node *np;
 	struct bigo_bw *bw;
 
 	struct device_node *bw_np __free(device_node) =
@@ -145,7 +143,7 @@ static int bigo_of_parse_bw_table(struct bigo_core *core)
 		return -ENOENT;
 		goto err_add_table;
 	}
-	for_each_available_child_of_node(bw_np, np) {
+	for_each_available_child_of_node_scoped(bw_np, np) {
 		bw = kmalloc(sizeof(*bw), GFP_KERNEL);
 		if (!bw) {
 			rc = -ENOMEM;
