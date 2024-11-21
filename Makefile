@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for bigocean
+# Makefile for bigwave
 #
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
